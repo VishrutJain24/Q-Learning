@@ -1,0 +1,67 @@
+from time import sleep
+import numpy as np
+import gym
+import matplotlib.pyplot as plt
+%matplotlib inline
+
+
+env = gym.make('FrozenLake-v0')   #Initialise the environment
+inputCount = env.observation_space.n
+actionsCount = env.action_space.n
+print(env.observation_space.n)
+print(env.action_space.n)
+
+
+Q = {}   #Initialize Q-table to 0
+for i in range(inputCount):
+    Q[i] = np.random.rand(actionsCount)
+
+#Hyperparameters
+alpha = 0.33
+minimum_alpha = 0.001   #learning rate 
+alphaDecay = 0.9999
+gamma = 1.0             #discount factor 
+epsilon = 1.0
+epsilonMin = 0.001
+epsilonDecay = 0.97
+episodes = 2000      #number of episodes for training
+
+# Training
+for i in range(episodes):
+    print("Episode {}/{}".format(i + 1, episodes))
+    env.render()     #for gui
+    s = env.reset()
+    done = False
+
+    while not done:
+        if np.random.random() < epsilon:  
+            a = np.random.randint(0, actionsCount)
+        else:
+            a = np.argmax(Q[s])  # If np.random > epsilon, select the action corresponding to the biggest Q value for this state i.e Exploitation
+
+        new_state, r, done, _ = env.step(a)   #mathematical model based on bellman's equation
+        Q[s][a] = Q[s][a] + alpha * (r + gamma * np.max(Q[new_state]) - Q[s][a])   
+        s = new_state
+
+        if alpha > minimum_alpha:
+            alpha *= alphaDecay
+
+        if not r==0 and epsilon > epsilonMin:    #we need less exploration 
+            epsilon *= epsilonDecay
+
+print("Alpha :", alpha)
+print("Epsilon :", epsilon)
+
+# Testing  #We calculate the average rewards for 50 episodes
+rewards = 0
+for x in range(50):
+    s = env.reset()
+    done = False
+
+    while not done:
+        a = np.argmax(Q[s])
+        new_state, r, done, _ = env.step(a)   
+        s = new_state
+
+    rewards += r/50
+print("Average rewards on 50 episode:", rewards)
