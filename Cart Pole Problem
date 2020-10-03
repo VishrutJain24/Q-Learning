@@ -1,0 +1,113 @@
+import gym
+import numpy as np
+import collections
+import math
+import matplotlib.pyplot as plt
+%matplotlib inline
+
+env = gym.make('CartPole-v1')
+
+# hyperparameters
+episodes = 2000
+expected_duration = 200
+alpha = 0.1  # minimum learning rate
+epsilon = 0.1  # minimum exploration rate
+gamma = 1.0  # discount factor
+divisor = 25
+buckets = (1, 1, 6, 12,)
+Q = np.zeros(buckets + (env.action_space.n,))  #Initialising Q table to 0
+
+print(env.observation_space.high[0])
+print(env.observation_space.low[0])
+print(env.observation_space.high[2])
+print(env.observation_space.low[2])
+print(env.action_space)
+
+
+#Functions
+def discretize(obs):
+    upper_bounds = [env.observation_space.high[0], 0.5, env.observation_space.high[2], math.radians(50)]
+    lower_bounds = [env.observation_space.low[0], -0.5, env.observation_space.low[2], -math.radians(50)]
+    ratios = [(obs[i] + abs(lower_bounds[i])) / (upper_bounds[i] - lower_bounds[i]) for i in range(len(obs))]
+    new_obs = [int(round((buckets[i] - 1) * ratios[i])) for i in range(len(obs))]
+    new_obs = [min(buckets[i] - 1, max(0, new_obs[i])) for i in range(len(obs))]
+    return tuple(new_obs)
+
+def choose_action(state, epsilon):  #choose action based on 
+    return env.action_space.sample() if (np.random.random() <= epsilon) else np.argmax(Q[state])
+
+def update_q(state_old, action, reward, state_new, alpha):  #update the Q table  #mathematical mode based on Bellman's equation
+    Q[state_old][action] += alpha * (reward + gamma * np.max(Q[state_new]) - Q[state_old][action])
+
+def get_epsilon(t): #for getting epsilon 
+    return max(epsilon, min(1, 1.0 - math.log10((t + 1) / divisor)))
+ 
+def get_alpha(t):  #for getting learning rate 
+    return max(alpha, min(1.0, 1.0 - math.log10((t + 1) / divisor)))
+
+
+def episode():  #runs a single Q-learning ep
+    # get current state
+    observation = env.reset()
+    current_state = discretize(observation)
+    
+    alpha = get_alpha(episode)         # get learning rate and exploration rate
+    epsilon = get_epsilon(episode)
+
+    done = False
+    duration = 0
+
+   
+    while not done:
+        env.render()             #remove the comment and use it as a function for better visualisation
+        action = choose_action(current_state, epsilon) 
+        obs, reward, done, _ = env.step(action)
+        new_state = discretize(obs)
+        update_q(current_state, action, reward, new_state, alpha)
+        current_state = new_state
+        duration += 1
+    
+    return duration
+
+
+
+
+def policy():  #policy
+   
+    current_state = discretize(env.reset())
+    done=False
+
+    while not done:
+        action = choose_action(current_state, 0)
+        obs, reward, done, _ = env.step(action)
+        env.render()
+        current_state = discretize(obs)
+
+    env.close()
+
+    return
+
+
+if __name__ == '__main__':
+    durations = collections.deque(maxlen = episodes)  
+
+    for x in range(episodes):
+        duration = episode()         
+        durations.append(duration)    # mean duration of previous 100 episodes
+        mean_duration = np.mean(durations)
+
+        # to check our policy 
+        if mean_duration >= expected_duration and episode >= 100:
+            print('Ran {} episodes. Solved after {} trys'.format(episode, episode - 100))
+            policy()
+            break
+        
+        elif episode % 100 == 0:
+            print('[Episode {}] - Mean time over previous 100 episodes was {}.'.format(episode, mean_duration))
+            
+#Graph
+plt.plot(durations)
+plt.xlabel("Episodes")
+plt.ylabel("Duration")
+plt.grid(True)
+plt.show()
