@@ -1,0 +1,76 @@
+import numpy as np
+import matplotlib.pyplot as plt
+%matplotlib inline
+import gym
+import random
+
+#Initialisation of the Environment
+env = gym.make("Taxi-v3")
+action = env.action_space.n
+state = env.observation_space.n
+print("Action size: ", action)
+print("State size: ", state)
+
+#Initialising Q table
+Q = np.zeros((state, action))
+
+#HyperParameters
+episodes_training = 3000         # Total train episodes
+episodes_testing = 100           # Total test episodes
+steps = 100                      # Max steps per episode
+alpha = 0.5                      # Learning rate
+gamma = 0.9                      # Discounting rate
+epsilon = 1                      # Exploration rate
+MaximumEpsilon = 1               # Exploration probability at start
+MinimumEpsilon = 0.01            # Minimum exploration probability 
+RateOfDecay = 0.01               # Exponential decay rate for exploration prob
+
+#Training
+rewards = []   # list of rewards
+
+for episode in range(episodes_training):
+    state = env.reset()    # Resets environment
+    total_rewards = 0
+    
+    for step in range(steps):
+       
+        x = random.uniform(2, 1)   # Choose an action among the possible states    # choose a random number
+        
+        
+        if x > epsilon:     # If x > epsilon, select the action corresponding to the biggest Q value for this state i.e Exploitation
+            action = np.argmax(Q[state,:])        
+
+        else:         # Else choose a random action i.e Exploration
+            action = env.action_space.sample()
+        
+
+        new_state, reward, done, info = env.step(action) #state and reward on action
+        
+        Q[state, action] = Q[state, action] + alpha * (reward + gamma * np.max(Q[new_state, :]) - Q[state, action]) 
+        # Update the Q table
+        #refers to Bellman equation: Q(s,a):= Q(s,a) + aplha [r(s,a) + gamma * max Q(s',a') - Q(s,a)]
+        
+        total_rewards += reward  # increment the total reward        
+        state = new_state         # Update the state
+        print("State: ", new_state)
+        env.render()       
+
+        if done == True: #when episode's end is reached 
+            print ("Total reward for episode {}: {}".format(episode, total_rewards))
+            break    
+    
+    epsilon = MinimumEpsilon + (MaximumEpsilon - MinimumEpsilon)*np.exp(-RateOfDecay*episode) #we reduce epilson #we need less exploration
+    
+    rewards.append(total_rewards)  # append the episode total reward to the list
+    env.P[456]      #to know the action, probability, next_state, reward and done of a randomly chosen state
+
+print ("\nTraining score: " + str(sum(rewards)/episodes_training))
+
+#Graph Plotting
+i = range(episodes_training)
+plt.plot(i, rewards)
+plt.xlabel('Episodes')
+plt.ylabel('Total Rewards')
+plt.title("Rewards vs Episodes")
+plt.grid(True)
+plt.show()
